@@ -1,6 +1,6 @@
-# DDGS
+# DPDGS
 
-DDGS implements dynamic 3D Gaussian splatting with a PyTorch training pipeline. This guide focuses on preparing data and running training jobs.
+DPDGS implements dynamic 3D Gaussian splatting with a PyTorch training pipeline. This guide focuses on preparing data and running training jobs.
 
 ## Environment setup
 
@@ -40,7 +40,7 @@ A typical training command looks like:
 ```bash
 python train.py \
     --source_path /data/datasets/dynerf/sear_steak \
-    --expname sear_steak_ddgs \
+    --expname sear_steak_dpdgs \
     --configs arguments/dynerf/default.py
 ```
 
