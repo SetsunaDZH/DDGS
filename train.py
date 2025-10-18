@@ -1,13 +1,5 @@
-#
-# Copyright (C) 2023, Inria
-# GRAPHDECO research group, https://team.inria.fr/graphdeco
-# All rights reserved.
-#
-# This software is free for non-commercial, research and evaluation use 
-# under the terms of the LICENSE.md file.
-#
-# For inquiries contact  george.drettakis@inria.fr
-#
+
+
 import numpy as np
 import random
 import os, sys
@@ -50,10 +42,10 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
     gaussians.training_setup(opt)
     if checkpoint:
-        # breakpoint()
+      
         if stage == "coarse" and stage not in checkpoint:
             print("start from fine stage, skip coarse stage.")
-            # process is in the coarse stage, but start from fine stage
+            
             return
         if stage in checkpoint: 
             (model_params, first_iter) = torch.load(checkpoint)
@@ -75,17 +67,17 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
     
     progress_bar = tqdm(range(first_iter, final_iter), desc="Training progress")
     first_iter += 1
-    # lpips_model = lpips.LPIPS(net="alex").cuda()
+
     video_cams = scene.getVideoCameras()
     test_cams = scene.getTestCameras()
     train_cams = scene.getTrainCameras()
 
 
     if not viewpoint_stack and not opt.dataloader:
-        # dnerf's branch
+        
         viewpoint_stack = [i for i in train_cams]
         temp_list = copy.deepcopy(viewpoint_stack)
-    # 
+  
     batch_size = opt.batch_size
     print("data loading done")
     if opt.dataloader:
@@ -100,11 +92,10 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         loader = iter(viewpoint_stack_loader)
     
     
-    # dynerf, zerostamp_init
-    # breakpoint()
+
     if stage == "coarse" and opt.zerostamp_init:
         load_in_memory = True
-        # batch_size = 4
+      
         temp_list = get_stamp_list(viewpoint_stack,0)
         viewpoint_stack = temp_list.copy()
     else:
@@ -125,10 +116,10 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                         viewpoint_index = viewpoint_index
                     else:
                         viewpoint_index = len(video_cams) - viewpoint_index - 1
-                    # print(viewpoint_index)
+                   
                     viewpoint = video_cams[viewpoint_index]
                     custom_cam.time = viewpoint.time
-                    # print(custom_cam.time, viewpoint_index, count)
+                    
                     net_image = render(custom_cam, gaussians, pipe, background, scaling_modifer, stage=stage, cam_type=scene.dataset_type)["render"]
 
                     net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
@@ -143,13 +134,10 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
         gaussians.update_learning_rate(iteration)
 
-        # Every 1000 its we increase the levels of SH up to a maximum degree
+
         if iteration % 1000 == 0:
             gaussians.oneupSHdegree()
 
-        # Pick a random Camera
-
-        # dynerf's branch
         if opt.dataloader and not load_in_memory:
             try:
                 viewpoint_cams = next(loader)
@@ -173,9 +161,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 idx +=1
             if len(viewpoint_cams) == 0:
                 continue
-        # print(len(viewpoint_cams))     
-        # breakpoint()   
-        # Render
+    
         if (iteration - 1) == debug_from:
             pipe.debug = True
         images = []
@@ -203,31 +189,26 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         visibility_filter = torch.cat(visibility_filter_list).any(dim=0)
         image_tensor = torch.cat(images,0)
         gt_image_tensor = torch.cat(gt_images,0)
-        # Loss
-        # breakpoint()
+
         Ll1 = l1_loss(image_tensor, gt_image_tensor[:,:3,:,:])
 
         psnr_ = psnr(image_tensor, gt_image_tensor).mean().double()
-        # norm
+       
         
 
         loss = Ll1
         if stage == "fine" and hyper.time_smoothness_weight != 0:
-            # tv_loss = 0
+           
             tv_loss = gaussians.compute_regulation(hyper.time_smoothness_weight, hyper.l1_time_planes, hyper.plane_tv_weight)
             loss += tv_loss
         if opt.lambda_dssim != 0:
             ssim_loss = ssim(image_tensor,gt_image_tensor)
             loss += opt.lambda_dssim * (1.0-ssim_loss)
-        # if opt.lambda_lpips !=0:
-        #     lpipsloss = lpips_loss(image_tensor,gt_image_tensor,lpips_model)
-        #     loss += opt.lambda_lpips * lpipsloss
-        
-        # Add physics loss with weight
-        physics_weight = 0.1  # Adjust this weight to balance between image reconstruction and physics constraints
+     
+        physics_weight = 0.1  
         loss += physics_weight * physics_loss
         
-        # Record scalar loss value for plotting
+  
         try:
             loss_history.append(float(loss.item()))
         except Exception:
@@ -243,7 +224,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         iter_end.record()
 
         with torch.no_grad():
-            # Progress bar
+            
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
             ema_psnr_for_log = 0.4 * psnr_ + 0.6 * ema_psnr_for_log
             total_point = gaussians._xyz.shape[0]
@@ -255,7 +236,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             if iteration == opt.iterations:
                 progress_bar.close()
 
-            # Log and save
+        
             timer.pause()
             training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, [pipe, background], stage, scene.dataset_type)
             if (iteration in saving_iterations):
@@ -265,16 +246,15 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 if (iteration < 1000 and iteration % 10 == 9) \
                     or (iteration < 3000 and iteration % 50 == 49) \
                         or (iteration < 60000 and iteration %  100 == 99) :
-                    # breakpoint()
+                 
                         render_training_image(scene, gaussians, [test_cams[iteration%len(test_cams)]], render, pipe, background, stage+"test", iteration,timer.get_elapsed_time(),scene.dataset_type)
                         render_training_image(scene, gaussians, [train_cams[iteration%len(train_cams)]], render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
-                        # render_training_image(scene, gaussians, train_cams, render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
-
-                    # total_images.append(to8b(temp_image).transpose(1,2,0))
+                     
+          
             timer.start()
-            # Densification
+
             if iteration < opt.densify_until_iter :
-                # Keep track of max radii in image-space for pruning
+
                 gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
                 gaussians.add_densification_stats(viewspace_point_tensor_grad, visibility_filter)
 
@@ -303,7 +283,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                     
             
 
-            # Optimizer step
+
             if iteration < opt.iterations:
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none = True)
@@ -312,7 +292,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" +f"_{stage}_" + str(iteration) + ".pth")
 def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, expname):
-    # first_iter = 0
+
     tb_writer = prepare_output_and_logger(expname)
     gaussians = GaussianModel(dataset.sh_degree, hyper)
 
@@ -329,20 +309,17 @@ def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, c
 
 def prepare_output_and_logger(expname):    
     if not args.model_path:
-        # if os.getenv('OAR_JOB_ID'):
-        #     unique_str=os.getenv('OAR_JOB_ID')
-        # else:
-        #     unique_str = str(uuid.uuid4())
+
         unique_str = expname
 
         args.model_path = os.path.join("./output/", unique_str)
-    # Set up output folder
+
     print("Output folder: {}".format(args.model_path))
     os.makedirs(args.model_path, exist_ok = True)
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(**vars(args))))
 
-    # Create Tensorboard writer
+
     tb_writer = None
     if TENSORBOARD_FOUND:
         tb_writer = SummaryWriter(args.model_path)
@@ -357,7 +334,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
         tb_writer.add_scalar(f'{stage}/iter_time', elapsed, iteration)
         
     
-    # Report test and samples of training set
+    
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
         # 
@@ -382,13 +359,13 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     except:
                         pass
                     l1_test += l1_loss(image, gt_image).mean().double()
-                    # mask=viewpoint.mask
+                   
                     
                     psnr_test += psnr(image, gt_image, mask=None).mean().double()
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras'])          
                 print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
-                # print("sh feature",scene.gaussians.get_features.shape)
+            
                 if tb_writer:
                     tb_writer.add_scalar(stage + "/"+config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(stage+"/"+config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
@@ -408,8 +385,7 @@ def setup_seed(seed):
      random.seed(seed)
      torch.backends.cudnn.deterministic = True
 if __name__ == "__main__":
-    # Set up command line argument parser
-    # torch.set_default_tensor_type('torch.FloatTensor')
+
     torch.cuda.empty_cache()
     parser = ArgumentParser(description="Training script parameters")
     setup_seed(6666)
@@ -438,15 +414,15 @@ if __name__ == "__main__":
         args = merge_hparams(args, config)
     print("Optimizing " + args.model_path)
 
-    # Initialize system state (RNG)
+
     safe_state(args.quiet)
 
-    # Start GUI server, configure and run training
+ 
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
     training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
 
     
 
-    # All done
+  
     print("\nTraining complete.")
